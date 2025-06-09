@@ -1,0 +1,54 @@
+{
+    "include": [
+      "$HOME/.config/waybar/Modules",
+      "$HOME/.config/waybar/ModulesWorkspaces",
+      "$HOME/.config/waybar/ModulesCustom",
+      "$HOME/.config/waybar/ModulesGroups",
+      "$HOME/.config/waybar/UserModules"
+    ],
+    "layer": "top",
+    "exclusive": true,
+    "passthrough": false,
+    "position": "top",
+    "spacing": 3,
+    "fixed-center": true,
+    "ipc": true,
+    "margin-top": 3,
+    "margin-left": 8,
+    "margin-right": 8,
+
+    "modules-left": [
+        "hyprland/workspaces#pacman",
+        "custom/separator#dot-line",
+		
+        "group/mobo_drawer", // This is where your custom module is used
+        "custom/weather",
+        "custom/separator#blank_3",
+        "custom/cava_mviz"
+    ],
+
+    "modules-center": [
+        "custom/menu",
+        "custom/separator#dot-line",
+        "clock",
+        "custom/separator#dot-line"
+    ],
+
+    "modules-right": [
+        "network#speed",
+        "custom/separator#dot-line",
+        "group/notify",
+        "tray",
+        "mpris",
+        "custom/separator#dot-line",
+        "bluetooth",
+        "custom/separator#dot-line",
+        "battery",
+        "custom/separator#dot-line",
+        "pulseaudio",
+        "custom/separator#dot-line",
+        "pulseaudio#microphone",
+        "custom/separator#dot-line",
+        "custom/power"
+    ]
+}

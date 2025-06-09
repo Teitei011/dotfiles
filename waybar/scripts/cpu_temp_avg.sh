@@ -1,67 +1,75 @@
 #!/bin/bash
-
 # Script to calculate average CPU temperature and output JSON for Waybar
+# - More robust sensor detection and improved error handling -
 
 # --- Configuration ---
-default_icon="" # Normal temperature icon (e.g., thermometer three-quarters)
-critical_icon="" # Critical temperature icon (e.g., thermometer full, or a fire icon 🔥)
-critical_threshold=80 # Degrees Celsius
+icon_very_cold="❄️"      # Below 30°C
+icon_cool="🌬️"            # 30–39°C
+icon_mild="☁️"            # 40–49°C
+icon_warm="☀️"            # 50–59°C
+icon_hot="🔥"             # 60–69°C
+icon_very_hot="☢️"        # 70–79°C
+icon_critical="💀"        # 80°C and above
+icon_error="⚠️"           # Error icon
+critical_threshold=75    # Fixed threshold for critical
 
 # --- Logic ---
 total_temp=0
 core_count=0
-class_name="normal" # Default CSS class
+# Find all temperature sensor input files
+sensor_paths=$(find /sys/class/hwmon/hwmon*/ -name "temp*_input")
 
-# (The hwmon discovery logic remains the same as before)
-for hwmon_path in /sys/class/hwmon/hwmon*/; do
-    if [ -f "${hwmon_path}name" ] && (grep -qi "coretemp" "${hwmon_path}name" || grep -qi "k10temp" "${hwmon_path}name" || grep -qi "zenpower" "${hwmon_path}name"); then
-        for temp_input_file in $(find "$hwmon_path" -name "temp*_input"); do
-            label_file="${temp_input_file/_input/_label}"
-            is_cpu_temp=false
-            if [ -f "$label_file" ]; then
-                label_content=$(cat "$label_file")
-                if [[ "$label_content" == "Package id "* || "$label_content" == "Core "* || "$label_content" == "Tdie" || "$label_content" == "Tctl" ]]; then
-                    is_cpu_temp=true
-                fi
-            else
-                is_cpu_temp=true # Assume relevant if no label under CPU hwmon
-            fi
-
-            if $is_cpu_temp && [ -f "$temp_input_file" ]; then
-                raw_temp=$(cat "$temp_input_file")
-                if [[ "$raw_temp" =~ ^[0-9]+$ ]]; then
-                    actual_temp_c=$((raw_temp / 1000))
+for temp_input_file in $sensor_paths; do
+    hwmon_path=$(dirname "$temp_input_file")
+    # Check if the sensor name matches common CPU sensor names
+    if [ -f "${hwmon_path}/name" ] && grep -qiE "coretemp|k10temp|zenpower|acpitz|pch_" "${hwmon_path}/name"; then
+        if [ -f "$temp_input_file" ]; then
+            raw_temp=$(cat "$temp_input_file")
+            # Ensure the temperature reading is a valid number
+            if [[ "$raw_temp" =~ ^[0-9]+$ ]]; then
+                actual_temp_c=$((raw_temp / 1000))
+                # Ignore readings that are clearly incorrect (e.g., 0°C or >120°C)
+                if [ "$actual_temp_c" -gt 0 ] && [ "$actual_temp_c" -lt 120 ]; then
                     total_temp=$((total_temp + actual_temp_c))
                     core_count=$((core_count + 1))
                 fi
             fi
-        done
+        fi
     fi
 done
 
+# --- Output ---
 if [ "$core_count" -gt 0 ]; then
   average_temp_c=$((total_temp / core_count))
 
-  # --- Determine icon and class based on temperature ---
-  current_icon="$default_icon"
-  if [ "$average_temp_c" -ge "$critical_threshold" ]; then
-    current_icon="$critical_icon"
-    class_name="critical"
+  # Determine icon and class based on temperature
+  if [ "$average_temp_c" -lt 30 ]; then
+    current_icon="$icon_very_cold"; class_name="very-cold"
+  elif [ "$average_temp_c" -lt 40 ]; then
+    current_icon="$icon_cool"; class_name="cool"
+  elif [ "$average_temp_c" -lt 50 ]; then
+    current_icon="$icon_mild"; class_name="mild"
+  elif [ "$average_temp_c" -lt 60 ]; then
+    current_icon="$icon_warm"; class_name="warm"
+  elif [ "$average_temp_c" -lt 70 ]; then
+    current_icon="$icon_hot"; class_name="hot"
+  elif [ "$average_temp_c" -lt "$critical_threshold" ]; then
+    current_icon="$icon_very_hot"; class_name="very-hot"
+  else
+    current_icon="$icon_critical"; class_name="critical"
   fi
 
-  # --- Optional: Still apply the -5 degree visual adjustment if desired ---
-  # display_temp_c=$((average_temp_c - 5))
-  # text_output="${current_icon} ${display_temp_c}°C"
-
-  # Displaying the actual average temperature
+  # *** THIS IS THE MODIFIED LINE ***
   text_output="${current_icon} ${average_temp_c}°C"
+  
+  # The tooltip can remain more descriptive
+  tooltip_output="Avg CPU Temp: ${average_temp_c}°C"
 
-  # --- Output JSON for Waybar ---
-  printf '{"text": "%s", "class": "%s", "tooltip": "Avg CPU Temp: %s°C"}\n' \
-    "$text_output" \
-    "$class_name" \
-    "$average_temp_c"
+  # Output JSON for Waybar
+  printf '{"text": "%s", "class": "%s", "tooltip": "%s"}\n' \
+    "$text_output" "$class_name" "$tooltip_output"
 else
-  # Fallback if no CPU temperatures found
-  printf '{"text": "%s N/A", "class": "unknown", "tooltip": "CPU Temperature N/A"}\n' "$default_icon"
+  # --- IMPROVED ERROR HANDLING ---
+  # If no sensors were found, output a clear error message.
+  printf '{"text": "%s CPU Error", "class": "critical", "tooltip": "Error: No valid CPU temperature sensor found in /sys/class/hwmon/"}\n' "$icon_error"
 fi
