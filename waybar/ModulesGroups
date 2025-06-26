@@ -38,19 +38,19 @@
         "format": "TEST: {}"
     },
 
-        "custom/cpu-temp-average": {
-      "exec": "$HOME/.config/waybar/scripts/cpu_temp_avg.sh", // <-- Use $HOME variable
-      "return-type": "json",
-      "format": "{text}",
-      "tooltip-format": "{tooltip}",
-      "interval": 5
-    },
+      "custom/cpu-temp-average": {
+  "exec": "$HOME/.config/waybar/scripts/cpu_temp_avg.sh", 
+  "return-type": "json",
+  "format": "<span foreground='white'>{text}</span>",
+  "tooltip-format": "<span foreground='white'>{tooltip}</span>",
+  "interval": 5
+},
 
-    "custom/gpu": {
-        "exec": "$HOME/.config/waybar/scripts/gpu_usage.sh",
-        "interval": 5,
-        "format": "{}"
-    },
+"custom/gpu": {
+  "exec": "$HOME/.config/waybar/scripts/gpu_usage.sh",
+  "interval": 5,
+  "format": "<span foreground='white'>{}</span>"
+},
 
      "group/mobo_drawer": {
         "orientation": "inherit",
